@@ -36,7 +36,7 @@ describe Shoulda::Matchers::ActiveModel::AllowValueMatcher, type: :model do
     it 'sets a block which is yielded after each value is set on the attribute' do
       attribute = :attr
       record = define_model(:example, attribute => :string).new
-      matcher = described_class.new('a', 'b', 'c').for(attribute)
+      matcher = described_class.new(['a', 'b', 'c']).for(attribute)
       call_count = 0
 
       matcher._after_setting_value { call_count += 1 }
@@ -210,7 +210,7 @@ describe Shoulda::Matchers::ActiveModel::AllowValueMatcher, type: :model do
   context 'with a single value' do
     it 'allows you to call description before calling matches?' do
       model = define_model(:example, attr: :string).new
-      matcher = described_class.new('foo').for(:attr)
+      matcher = described_class.new(['foo']).for(:attr)
       matcher.description
 
       expect { matcher.matches?(model) }.not_to raise_error
@@ -378,6 +378,57 @@ describe Shoulda::Matchers::ActiveModel::AllowValueMatcher, type: :model do
               to allow_value('another name').
               for(:name).
               ignoring_interference_by_writer
+          end
+
+          expect(&assertion).not_to raise_error
+        end
+      end
+    end
+
+    context 'when the matcher knows how incoming values get changed' do
+      context 'using #allow_value' do
+        it 'accepts (and does not raise an error)' do
+          model = define_active_model_class 'Example' do
+            attr_reader :name
+
+            def name=(name)
+              @name = name.upcase
+            end
+          end
+
+          record = model.new
+
+          assertion = lambda do
+            expect(record).
+              to allow_value('another name').
+              for(:name).
+              converting_value_to('ANOTHER NAME')
+          end
+
+          expect(&assertion).not_to raise_error
+        end
+      end
+
+      context 'using #allow_values' do
+        it 'accepts (and does not raise an error)' do
+          model = define_active_model_class 'Example' do
+            attr_reader :name
+
+            def name=(name)
+              @name = name.upcase
+            end
+          end
+
+          record = model.new
+
+          assertion = lambda do
+            expect(record).
+              to allow_values('first name', 'second name').
+              for(:name).
+              converting_values(
+                'first name' => 'FIRST NAME',
+                'second name' => 'SECOND NAME'
+              )
           end
 
           expect(&assertion).not_to raise_error
